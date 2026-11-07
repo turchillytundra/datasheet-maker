@@ -161,15 +161,16 @@ const ENGINE = (() => {
 
   // ---- Abilities: value multipliers (fixed, not fitted) ----
   const ABILITIES = {
-    deepstrike:   { label: 'Deep Strike', pct: 8, tip: 'Arrives from reserves anywhere more than 8" from enemies' },
-    scouts:       { label: 'Scouts', pct: 5, tip: 'Free move before the battle' },
-    infiltrators: { label: 'Infiltrators', pct: 6, tip: 'Deploys anywhere more than 8" from enemies' },
+    deepstrike:   { label: 'Deep Strike', pct: 8, cap: 40, tip: 'Arrives from reserves anywhere more than 8" from enemies' },
+    scouts:       { label: 'Scouts', pct: 5, cap: 25, tip: 'Free move before the battle' },
+    infiltrators: { label: 'Infiltrators', pct: 6, cap: 30, tip: 'Deploys anywhere more than 8" from enemies' },
     stealth:      { label: 'Stealth', pct: 0, tip: '-1 to be hit by ranged attacks (worked out in toughness)' },
-    loneop:       { label: 'Lone Operative', pct: 12, tip: "Can't be seen from more than 12\" away" },
-    fightsfirst:  { label: 'Fights First', pct: 6, tip: 'Fights before other units' },
-    fly:          { label: 'Fly', pct: 4, tip: 'Moves over models and terrain' },
-    leader:       { label: 'Leader', pct: 15, tip: 'Can join a unit and lead it' },
-    support:      { label: 'Support', pct: 8, tip: 'Can join a unit alongside a Leader' },
+    loneop:       { label: 'Lone Operative', pct: 12, cap: 50, tip: "Can't be seen from more than 12\" away" },
+    fightsfirst:  { label: 'Fights First', pct: 6, cap: 30, tip: 'Fights before other units' },
+    fly:          { label: 'Fly', pct: 4, cap: 20, tip: 'Moves over models and terrain' },
+    supreme:      { label: 'Supreme Commander', pct: 6, cap: 25, tip: 'Must be your Warlord – the leader of your whole army' },
+    leader:       { label: 'Leader', pct: 15, cap: 35, tip: 'Can join a unit and lead it' },
+    support:      { label: 'Support', pct: 8, cap: 20, tip: 'Can join a unit alongside a Leader' },
     reroll1s:     { label: 'Re-roll hit rolls of 1', pct: 0, off: 1.1, tip: 'Applied to attacks' },
     rerollw1s:    { label: 'Re-roll wound rolls of 1', pct: 0, off: 1.08, tip: 'Applied to attacks' },
     rerollone:    { label: 'Re-roll one hit and one wound', pct: 0, off: 1.06, tip: 'Applied to attacks' },
@@ -180,24 +181,31 @@ const ENGINE = (() => {
     minus1dmg:    { label: '-1 Damage taken', pct: 0, tip: 'Worked out in toughness' },
     minus1wound:  { label: '-1 to be wounded (vs stronger)', pct: 0, tip: 'Worked out in toughness' },
     halfdmg:      { label: 'Halve damage taken', pct: 0, tip: 'Worked out in toughness' },
-    sticky:       { label: 'Sticky objectives', pct: 4, tip: 'Keeps objectives after leaving' },
-    advcharge:    { label: 'Advance and charge', pct: 6, tip: 'Can charge after advancing' },
-    fallback:     { label: 'Fall back and shoot/charge', pct: 5, tip: 'Still acts after falling back' },
-    psyker:       { label: 'Psyker', pct: 3, tip: 'Has psychic powers' },
-    regen:        { label: 'Heals / brings models back', pct: 8, tip: 'Reanimation, regeneration, etc.' },
+    sticky:       { label: 'Sticky objectives', pct: 4, cap: 15, tip: 'Keeps objectives after leaving' },
+    advcharge:    { label: 'Advance and charge', pct: 6, cap: 25, tip: 'Can charge after advancing' },
+    fallback:     { label: 'Fall back and shoot/charge', pct: 5, cap: 20, tip: 'Still acts after falling back' },
+    psyker:       { label: 'Psyker', pct: 3, cap: 15, tip: 'Has psychic powers' },
+    regen:        { label: 'Heals / brings models back', pct: 8, cap: 40, tip: 'Reanimation, regeneration, etc.' },
     transport:    { label: 'Transport', pct: 0, tip: 'Carries other models (set capacity)' },
-    firingdeck:   { label: 'Firing Deck', pct: 3, tip: 'Passengers can shoot out' },
-    deadlydemise: { label: 'Deadly Demise', pct: 1, tip: 'Explodes when destroyed' },
+    firingdeck:   { label: 'Firing Deck', pct: 3, cap: 15, tip: 'Passengers can shoot out' },
+    deadlydemise: { label: 'Deadly Demise', pct: 1, cap: 5, tip: 'Explodes when destroyed' },
     damaged:      { label: 'Damaged', pct: -3, tip: 'Gets worse when badly hurt (big models)' },
   };
   const CUSTOM_TIERS = { minor: 5, major: 12, huge: 25 };
+  const CUSTOM_CAPS = { minor: 15, major: 35, huge: 60 };
 
-  function abilityMult(u) {
-    let pct = 0;
-    for (const a of u.abilities || []) if (ABILITIES[a]) pct += ABILITIES[a].pct;
-    for (const c of u.custom || []) pct += CUSTOM_TIERS[c.tier] || 0;
-    return 1 + pct / 100;
+  // Points added by abilities. Each ability is a percentage of the unit's core cost, but capped,
+  // and a long list of abilities has diminishing returns – so a big hero doesn't double in price.
+  function abilityPoints(u, core) {
+    let pos = 0, neg = 0;
+    const add = (pct, cap) => { const v = core * pct / 100; if (v >= 0) pos += Math.min(v, cap == null ? Infinity : cap); else neg += v; };
+    for (const a of u.abilities || []) if (ABILITIES[a] && ABILITIES[a].pct) add(ABILITIES[a].pct, ABILITIES[a].cap);
+    for (const c of u.custom || []) if (CUSTOM_TIERS[c.tier]) add(CUSTOM_TIERS[c.tier], CUSTOM_CAPS[c.tier]);
+    const eff = pos > 0 ? pos * core / (core + 0.75 * pos) : 0;
+    return eff + neg;
   }
+  function abilityMult(u) { return 1; } // kept for compatibility
+
   function offMult(u) {
     let m = 1;
     for (const a of u.abilities || []) if (ABILITIES[a] && ABILITIES[a].off) m *= ABILITIES[a].off;
@@ -282,7 +290,14 @@ const ENGINE = (() => {
     for (let r = 1; r < p; r++) A[r][r] += lambda;
     return solve(A, b);
   }
-  const target = u => Math.log((+u.points) / Math.max(1, +u.models) / abilityMult(u) - transportPts(u) / Math.max(1, +u.models));
+  // invert points = core + abilityPoints(core) + transport to find the core cost of a reference unit
+  function coreOf(u) {
+    const P = (+u.points) - transportPts(u);
+    let core = P;
+    for (let i = 0; i < 30; i++) core = Math.max(1, P - abilityPoints(u, core));
+    return core;
+  }
+  const target = u => Math.log(coreOf(u) / Math.max(1, +u.models));
   function transportPts(u) { return (u.abilities || []).includes('transport') ? 1.5 * (+u.capacity || 0) : 0; }
 
   function fit(refs) {
@@ -310,17 +325,15 @@ const ENGINE = (() => {
   function predictWith(u, beta, mu) {
     const f = features(u, mu);
     const lp = f.reduce((s, x, i) => s + x * beta[i], 0);
-    const ppm = Math.exp(lp) * abilityMult(u);
-    return ppm * Math.max(1, +u.models) + transportPts(u);
+    const core = Math.exp(lp) * Math.max(1, +u.models);
+    return core + abilityPoints(u, core) + transportPts(u);
   }
   function breakdown(u, model, refs) {
     const f = features(u, model.mu);
     const b = model.beta;
     const raw = predictWith(u, b, model.mu);
-    const am = abilityMult(u);
-    const base = raw - transportPts(u);
-    const abilityPts = base - base / am;
-    const core = base / am;
+    const core = Math.exp(f.reduce((a, x, i) => a + x * b[i], 0)) * Math.max(1, +u.models);
+    const abilityPts = abilityPoints(u, core);
     // share of core points by how far above the weakest reference each feature sits
     const F = refs.map(r => features(r, model.mu));
     const names = ['Attacks', 'Toughness', 'Speed'];
@@ -344,6 +357,6 @@ const ENGINE = (() => {
   }
   const round5 = x => Math.max(5, Math.round(x / 5) * 5);
 
-  return { dice, parseKw, weaponValue, weaponProfile, groups, toughness, offence, features, fit, predictWith, breakdown, round5, ABILITIES, CUSTOM_TIERS, TARGETS, abilityMult };
+  return { dice, parseKw, weaponValue, weaponProfile, groups, toughness, offence, features, fit, predictWith, breakdown, round5, ABILITIES, CUSTOM_TIERS, CUSTOM_CAPS, TARGETS, abilityMult, abilityPoints };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE;

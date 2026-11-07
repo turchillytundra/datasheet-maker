@@ -190,7 +190,7 @@ table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
 
    <div class="card">
     <h2><span class="n">4</span>Abilities</h2>
-    <p class="hint">Tap to switch on. The number shows roughly how much it adds.</p>
+    <p class="hint">Tap to switch on. Each ability adds a percentage of the unit's cost, up to a maximum, and lots of abilities together add a bit less each – so big heroes don't double in price.</p>
     <div class="chips" id="f-abil"></div>
     <div id="capWrap" style="margin-top:12px;display:none" class="row r2"><div><label>Transport capacity (models)</label><input id="f-cap" type="number" min="0" max="40"></div></div>
     <h3 class="disp" style="font-size:14px;margin:16px 0 8px;color:var(--gold2)">Your own special abilities</h3>
@@ -271,7 +271,7 @@ table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
   <h2>How the points are worked out</h2>
   <p><b>1. Attacks.</b> Every weapon is “fired” (in maths, not dice!) at five kinds of target – a horde, an 11th-edition Space Marine (Toughness 5), an elite in heavy armour, a monster and a tank. It works out the hits, wounds, failed saves and damage using the 11th edition rules: cover is −1 to hit for infantry, Heavy works if you move 3" or less, Blast and Cleave add attacks for every five enemy models, Hazardous fails on a 1 or 2, and One Shot can only fire once. Lethal Hits, Sustained Hits, Devastating Wounds, Anti-X, Melta and Twin-linked all count. Longer range is worth more, and weapons with two modes use whichever is better against each target.</p>
   <p><b>2. Toughness.</b> The unit is “shot at” by nine common 11th-edition weapons, from lasguns and boltguns to lascannons and power fists. The more attacks it takes to kill one model, the tougher it is. Toughness, Save, Wounds, InSv, Feel No Pain, Stealth, cover for infantry and −1 Damage all count.</p>
-  <p><b>3. Learning from real datasheets.</b> Attacks, toughness, speed and unit size for every reference datasheet below go into a regression – the computer finds the formula that best matches their real points. Abilities like Deep Strike or Leader add a set percentage on top.</p>
+  <p><b>3. Learning from real datasheets.</b> Attacks, toughness, speed and unit size for every reference datasheet below go into a regression – the computer finds the formula that best matches their real points. Abilities like Deep Strike or Leader add a set percentage on top, each with a maximum number of points, and a long list of abilities gives diminishing returns. Real primarchs like Roboute Guilliman and Lion El'Jonson are in the reference list so huge heroes are priced sensibly.</p>
   <p id="fitInfo"></p>
   <p class="mini">Reference points are 11th edition matched-play costs (November 2026) for the first copies of each unit with its standard wargear. Games Workshop changes points often – if you know a newer value, change it in the table and the formula re-learns instantly. Unofficial fan tool – not affiliated with Games Workshop.</p>
  </div>
@@ -461,15 +461,16 @@ const ENGINE = (() => {
 
   // ---- Abilities: value multipliers (fixed, not fitted) ----
   const ABILITIES = {
-    deepstrike:   { label: 'Deep Strike', pct: 8, tip: 'Arrives from reserves anywhere more than 8" from enemies' },
-    scouts:       { label: 'Scouts', pct: 5, tip: 'Free move before the battle' },
-    infiltrators: { label: 'Infiltrators', pct: 6, tip: 'Deploys anywhere more than 8" from enemies' },
+    deepstrike:   { label: 'Deep Strike', pct: 8, cap: 40, tip: 'Arrives from reserves anywhere more than 8" from enemies' },
+    scouts:       { label: 'Scouts', pct: 5, cap: 25, tip: 'Free move before the battle' },
+    infiltrators: { label: 'Infiltrators', pct: 6, cap: 30, tip: 'Deploys anywhere more than 8" from enemies' },
     stealth:      { label: 'Stealth', pct: 0, tip: '-1 to be hit by ranged attacks (worked out in toughness)' },
-    loneop:       { label: 'Lone Operative', pct: 12, tip: "Can't be seen from more than 12\" away" },
-    fightsfirst:  { label: 'Fights First', pct: 6, tip: 'Fights before other units' },
-    fly:          { label: 'Fly', pct: 4, tip: 'Moves over models and terrain' },
-    leader:       { label: 'Leader', pct: 15, tip: 'Can join a unit and lead it' },
-    support:      { label: 'Support', pct: 8, tip: 'Can join a unit alongside a Leader' },
+    loneop:       { label: 'Lone Operative', pct: 12, cap: 50, tip: "Can't be seen from more than 12\" away" },
+    fightsfirst:  { label: 'Fights First', pct: 6, cap: 30, tip: 'Fights before other units' },
+    fly:          { label: 'Fly', pct: 4, cap: 20, tip: 'Moves over models and terrain' },
+    supreme:      { label: 'Supreme Commander', pct: 6, cap: 25, tip: 'Must be your Warlord – the leader of your whole army' },
+    leader:       { label: 'Leader', pct: 15, cap: 35, tip: 'Can join a unit and lead it' },
+    support:      { label: 'Support', pct: 8, cap: 20, tip: 'Can join a unit alongside a Leader' },
     reroll1s:     { label: 'Re-roll hit rolls of 1', pct: 0, off: 1.1, tip: 'Applied to attacks' },
     rerollw1s:    { label: 'Re-roll wound rolls of 1', pct: 0, off: 1.08, tip: 'Applied to attacks' },
     rerollone:    { label: 'Re-roll one hit and one wound', pct: 0, off: 1.06, tip: 'Applied to attacks' },
@@ -480,24 +481,31 @@ const ENGINE = (() => {
     minus1dmg:    { label: '-1 Damage taken', pct: 0, tip: 'Worked out in toughness' },
     minus1wound:  { label: '-1 to be wounded (vs stronger)', pct: 0, tip: 'Worked out in toughness' },
     halfdmg:      { label: 'Halve damage taken', pct: 0, tip: 'Worked out in toughness' },
-    sticky:       { label: 'Sticky objectives', pct: 4, tip: 'Keeps objectives after leaving' },
-    advcharge:    { label: 'Advance and charge', pct: 6, tip: 'Can charge after advancing' },
-    fallback:     { label: 'Fall back and shoot/charge', pct: 5, tip: 'Still acts after falling back' },
-    psyker:       { label: 'Psyker', pct: 3, tip: 'Has psychic powers' },
-    regen:        { label: 'Heals / brings models back', pct: 8, tip: 'Reanimation, regeneration, etc.' },
+    sticky:       { label: 'Sticky objectives', pct: 4, cap: 15, tip: 'Keeps objectives after leaving' },
+    advcharge:    { label: 'Advance and charge', pct: 6, cap: 25, tip: 'Can charge after advancing' },
+    fallback:     { label: 'Fall back and shoot/charge', pct: 5, cap: 20, tip: 'Still acts after falling back' },
+    psyker:       { label: 'Psyker', pct: 3, cap: 15, tip: 'Has psychic powers' },
+    regen:        { label: 'Heals / brings models back', pct: 8, cap: 40, tip: 'Reanimation, regeneration, etc.' },
     transport:    { label: 'Transport', pct: 0, tip: 'Carries other models (set capacity)' },
-    firingdeck:   { label: 'Firing Deck', pct: 3, tip: 'Passengers can shoot out' },
-    deadlydemise: { label: 'Deadly Demise', pct: 1, tip: 'Explodes when destroyed' },
+    firingdeck:   { label: 'Firing Deck', pct: 3, cap: 15, tip: 'Passengers can shoot out' },
+    deadlydemise: { label: 'Deadly Demise', pct: 1, cap: 5, tip: 'Explodes when destroyed' },
     damaged:      { label: 'Damaged', pct: -3, tip: 'Gets worse when badly hurt (big models)' },
   };
   const CUSTOM_TIERS = { minor: 5, major: 12, huge: 25 };
+  const CUSTOM_CAPS = { minor: 15, major: 35, huge: 60 };
 
-  function abilityMult(u) {
-    let pct = 0;
-    for (const a of u.abilities || []) if (ABILITIES[a]) pct += ABILITIES[a].pct;
-    for (const c of u.custom || []) pct += CUSTOM_TIERS[c.tier] || 0;
-    return 1 + pct / 100;
+  // Points added by abilities. Each ability is a percentage of the unit's core cost, but capped,
+  // and a long list of abilities has diminishing returns – so a big hero doesn't double in price.
+  function abilityPoints(u, core) {
+    let pos = 0, neg = 0;
+    const add = (pct, cap) => { const v = core * pct / 100; if (v >= 0) pos += Math.min(v, cap == null ? Infinity : cap); else neg += v; };
+    for (const a of u.abilities || []) if (ABILITIES[a] && ABILITIES[a].pct) add(ABILITIES[a].pct, ABILITIES[a].cap);
+    for (const c of u.custom || []) if (CUSTOM_TIERS[c.tier]) add(CUSTOM_TIERS[c.tier], CUSTOM_CAPS[c.tier]);
+    const eff = pos > 0 ? pos * core / (core + 0.75 * pos) : 0;
+    return eff + neg;
   }
+  function abilityMult(u) { return 1; } // kept for compatibility
+
   function offMult(u) {
     let m = 1;
     for (const a of u.abilities || []) if (ABILITIES[a] && ABILITIES[a].off) m *= ABILITIES[a].off;
@@ -582,7 +590,14 @@ const ENGINE = (() => {
     for (let r = 1; r < p; r++) A[r][r] += lambda;
     return solve(A, b);
   }
-  const target = u => Math.log((+u.points) / Math.max(1, +u.models) / abilityMult(u) - transportPts(u) / Math.max(1, +u.models));
+  // invert points = core + abilityPoints(core) + transport to find the core cost of a reference unit
+  function coreOf(u) {
+    const P = (+u.points) - transportPts(u);
+    let core = P;
+    for (let i = 0; i < 30; i++) core = Math.max(1, P - abilityPoints(u, core));
+    return core;
+  }
+  const target = u => Math.log(coreOf(u) / Math.max(1, +u.models));
   function transportPts(u) { return (u.abilities || []).includes('transport') ? 1.5 * (+u.capacity || 0) : 0; }
 
   function fit(refs) {
@@ -610,17 +625,15 @@ const ENGINE = (() => {
   function predictWith(u, beta, mu) {
     const f = features(u, mu);
     const lp = f.reduce((s, x, i) => s + x * beta[i], 0);
-    const ppm = Math.exp(lp) * abilityMult(u);
-    return ppm * Math.max(1, +u.models) + transportPts(u);
+    const core = Math.exp(lp) * Math.max(1, +u.models);
+    return core + abilityPoints(u, core) + transportPts(u);
   }
   function breakdown(u, model, refs) {
     const f = features(u, model.mu);
     const b = model.beta;
     const raw = predictWith(u, b, model.mu);
-    const am = abilityMult(u);
-    const base = raw - transportPts(u);
-    const abilityPts = base - base / am;
-    const core = base / am;
+    const core = Math.exp(f.reduce((a, x, i) => a + x * b[i], 0)) * Math.max(1, +u.models);
+    const abilityPts = abilityPoints(u, core);
     // share of core points by how far above the weakest reference each feature sits
     const F = refs.map(r => features(r, model.mu));
     const names = ['Attacks', 'Toughness', 'Speed'];
@@ -644,7 +657,7 @@ const ENGINE = (() => {
   }
   const round5 = x => Math.max(5, Math.round(x / 5) * 5);
 
-  return { dice, parseKw, weaponValue, weaponProfile, groups, toughness, offence, features, fit, predictWith, breakdown, round5, ABILITIES, CUSTOM_TIERS, TARGETS, abilityMult };
+  return { dice, parseKw, weaponValue, weaponProfile, groups, toughness, offence, features, fit, predictWith, breakdown, round5, ABILITIES, CUSTOM_TIERS, CUSTOM_CAPS, TARGETS, abilityMult, abilityPoints };
 })();
 if (typeof module !== 'undefined') module.exports = ENGINE;
 
@@ -652,7 +665,7 @@ if (typeof module !== 'undefined') module.exports = ENGINE;
 // Profiles summarised from 11th edition datasheets (Wahapedia, Nov 2026); points are the
 // matched-play cost for your first copies of the unit, with default wargear.
 // Weapon ability tags ending ":inf" only apply against non-Monster/Vehicle targets.
-const REFS_VERSION = '11e-2026-11';
+const REFS_VERSION = '11e-2026-11b';
 const REFS = (() => {
   const W = (name, range, A, BS, S, AP, D, kw = '', carriers = 0, qty = 1, alt = false) => ({ name, range, A, BS, S, AP, D, kw, carriers, qty, alt });
   const ALT = (name, range, A, BS, S, AP, D, kw = '') => W(name, range, A, BS, S, AP, D, kw, 0, 1, true);
@@ -664,6 +677,11 @@ const REFS = (() => {
     U('Intercessor Squad', 'Space Marines', 5, 85, 6, 5, 3, 2, 6, 2, { custom: [minor('Bolter Discipline'), minor('Tactical Mainstay')] }, [
       W('Bolt rifle (focused fire)', 24, 1, 3, 6, 1, 2, 'rf1 heavy'), ALT('Bolt rifle (saturation)', 24, 2, 3, 5, 1, 1, 'assault rf1'),
       W('Bolt pistol', 12, 1, 3, 5, 1, 1, 'cq'), W('Knives and fists', 0, 3, 3, 5, 0, 1)]),
+    U('Roboute Guilliman', 'Space Marines', 1, 415, 8, 10, 2, 16, 5, 4, { keywords: ['monster', 'character'], inv: 4, fnp: 5, abilities: ['supreme', 'loneop'], custom: [major('Primarch of the XIII aura'), major('Author of the Codex')] }, [
+      W('Hand of Dominion', 36, 4, 2, 6, 2, 2, 'rf2 sus1'), W("Emperor's Sword", 0, 10, 2, 10, 3, 2, 'dev cleave2'), ALT('Hand of Dominion (melee)', 0, 7, 2, 14, 4, 4, 'lethal')]),
+    U("Lion El'Jonson", 'Space Marines', 1, 415, 8, 10, 2, 16, 5, 4, { keywords: ['monster', 'character'], inv: 3, abilities: ['supreme', 'deepstrike', 'fightsfirst', 'loneop', 'minus1wound'], custom: [major('Primarch of the First Legion')] }, [
+      W('Arma Luminis (plasma)', 18, 2, 2, 10, 3, 3, 'cq'), ALT('Arma Luminis (bolt)', 18, 4, 2, 6, 2, 2, 'cq'),
+      W('Fealty (sweep)', 0, 12, 2, 6, 3, 2, 'sus1 cleave2'), ALT('Fealty (strike)', 0, 8, 2, 12, 4, 4, 'lethal')]),
     U('Assault Intercessor Squad', 'Space Marines', 5, 85, 6, 5, 3, 2, 6, 2, { custom: [minor('Targeted Intercession')] }, [
       W('Heavy bolt pistol', 18, 1, 3, 5, 1, 1, 'cq'), W('Chainsword', 0, 4, 3, 5, 1, 1)]),
     U('Terminator Squad', 'Space Marines', 5, 190, 5, 6, 2, 3, 6, 1, { inv: 4, abilities: ['deepstrike'], custom: [major('Fury of the First')] }, [
@@ -871,7 +889,7 @@ function renderWeapons() {
       <div class="wstats">
         ${melee ? '<div><label>Range</label><input value="Melee" disabled></div>' : `<div><label>Range "</label><input data-f="range" value="${w.range}" inputmode="numeric"></div>`}
         <div><label>Attacks</label><input data-f="A" value="${esc(w.A)}"></div>
-        <div><label>${melee ? 'WS' : 'BS'} +</label><input data-f="BS" value="${w.BS}" inputmode="numeric"></div>
+        <div><label>${melee ? 'WS' : 'BS'} +</label>${!melee && k.torrent ? '<input value="N/A" disabled title="Torrent weapons hit automatically">' : `<input data-f="BS" value="${w.BS}" inputmode="numeric">`}</div>
         <div><label>Strength</label><input data-f="S" value="${w.S}" inputmode="numeric"></div>
         <div><label>AP −</label><input data-f="AP" value="${w.AP}" inputmode="numeric"></div>
         <div><label>Damage</label><input data-f="D" value="${esc(w.D)}"></div>
@@ -879,6 +897,7 @@ function renderWeapons() {
       <div class="chips">
         ${bools.map(([key, lab]) => `<span class="chip ${k[key] ? 'on' : ''}" data-kb="${key}">${lab}</span>`).join('')}
         ${nums.map(([key, lab, def]) => `<span class="chip ${k[key] ? 'on' : ''}" data-kn="${key}" data-def="${def}">${lab}${k[key] ? ` <input data-knv="${key}" value="${k[key]}" inputmode="numeric">` : ''}</span>`).join('')}
+        ${!melee && k.torrent ? `<p class="mini" style="width:100%;margin:2px 0 4px;color:var(--gold2)">🔥 Torrent: hits automatically – no Ballistic Skill roll needed.${k.lethal || k.sus ? ' Because it never rolls to hit, it can’t score critical hits, so Lethal Hits and Sustained Hits do nothing on this weapon.' : ''}</p>` : ''}
         <span class="chip ${antiOn ? 'on' : ''}" data-anti>Anti-${antiOn ? `<select data-antik style="width:auto;padding:2px 4px">${ANTI.map(a => `<option ${a === antiOn[0] ? 'selected' : ''}>${a}</option>`).join('')}</select><input data-antiv value="${antiOn[1]}" inputmode="numeric">+` : '…'}</span>
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin:10px 0 0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)"><input type="checkbox" data-alt style="width:auto" ${w.alt ? 'checked' : ''}> Another mode of the weapon above (pick one each time you attack)</label>
@@ -942,7 +961,7 @@ function updateWeaponValues() {
 function renderAbilities() {
   const A = ENGINE.ABILITIES;
   $('#f-abil').innerHTML = Object.entries(A).map(([key, a]) => {
-    const tag = a.pct ? `${a.pct > 0 ? '+' : '−'}${Math.abs(a.pct)}%` : a.off ? `+${Math.round((a.off - 1) * 100)}% attacks` : key === 'transport' ? 'per seat' : 'tougher';
+    const tag = a.pct ? `${a.pct > 0 ? '+' : '−'}${Math.abs(a.pct)}%${a.cap ? ' (max ' + a.cap + ')' : ''}` : a.off ? `+${Math.round((a.off - 1) * 100)}% attacks` : key === 'transport' ? 'per seat' : 'tougher';
     return `<span class="chip ${S.abilities.includes(key) ? 'on' : ''}" data-a="${key}" title="${esc(a.tip)}">${a.label} <em>${tag}</em></span>`;
   }).join('');
   $('#f-abil').onclick = e => {
@@ -961,7 +980,7 @@ function renderCustom() {
     <div class="wpn-head"><span>✨</span><input data-c="name" value="${esc(c.name)}" placeholder="Ability name"><button class="icon-btn" data-cdel>✕</button></div>
     <textarea data-c="desc" placeholder="What does it do? e.g. Once per battle, this unit can move again after shooting.">${esc(c.desc || '')}</textarea>
     <div style="margin-top:8px"><label>How powerful is it?</label><div class="chips">
-      ${Object.entries(ENGINE.CUSTOM_TIERS).map(([t, p]) => `<span class="chip ${c.tier === t ? 'on' : ''}" data-tier="${t}">${t[0].toUpperCase() + t.slice(1)} <em>+${p}%</em></span>`).join('')}
+      ${Object.entries(ENGINE.CUSTOM_TIERS).map(([t, p]) => `<span class="chip ${c.tier === t ? 'on' : ''}" data-tier="${t}">${t[0].toUpperCase() + t.slice(1)} <em>+${p}% (max ${ENGINE.CUSTOM_CAPS[t]})</em></span>`).join('')}
     </div><p class="mini" style="margin:6px 0 0">Small bonus = minor. Changes how you play = major. Game-changing = huge.</p></div></div>`).join('');
 }
 function setupCustomEvents() {
@@ -1004,7 +1023,7 @@ function cardHTML(s) {
   const sv = v => v ? v + '+' : '–';
   const st = [['M', s.M + '"'], ['T', s.T], ['SV', s.Sv >= 7 ? '–' : s.Sv + '+'], ['W', s.W], ['LD', s.Ld + '+'], ['OC', s.OC]];
   const row = w => `<tr><td>${w.alt ? '➤ ' : ''}${esc(w.name)}${w.qty > 1 ? ' ×' + w.qty : ''}${w.carriers ? ` <span class="mini">(${w.carriers} model${w.carriers > 1 ? 's' : ''})</span>` : ''}${kwLabel(w.kw) ? `<span class="kw">[${esc(kwLabel(w.kw))}]</span>` : ''}</td>
-    <td>${w.range > 0 ? w.range + '"' : 'Melee'}</td><td>${esc(w.A)}</td><td>${w.BS}+</td><td>${w.S}</td><td>${w.AP ? '-' + w.AP : '0'}</td><td>${esc(w.D)}</td></tr>`;
+    <td>${w.range > 0 ? w.range + '"' : 'Melee'}</td><td>${esc(w.A)}</td><td>${w.range > 0 && kwToObj(w.kw).torrent ? 'N/A' : w.BS + '+'}</td><td>${w.S}</td><td>${w.AP ? '-' + w.AP : '0'}</td><td>${esc(w.D)}</td></tr>`;
   const ranged = s.weapons.filter(w => w.range > 0), melee = s.weapons.filter(w => !(w.range > 0));
   const abil = s.abilities.map(a => ENGINE.ABILITIES[a]).filter(Boolean);
   const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);

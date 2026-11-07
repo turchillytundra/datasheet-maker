@@ -2,7 +2,7 @@
 // Profiles summarised from 11th edition datasheets (Wahapedia, Nov 2026); points are the
 // matched-play cost for your first copies of the unit, with default wargear.
 // Weapon ability tags ending ":inf" only apply against non-Monster/Vehicle targets.
-const REFS_VERSION = '11e-2026-11';
+const REFS_VERSION = '11e-2026-11b';
 const REFS = (() => {
   const W = (name, range, A, BS, S, AP, D, kw = '', carriers = 0, qty = 1, alt = false) => ({ name, range, A, BS, S, AP, D, kw, carriers, qty, alt });
   const ALT = (name, range, A, BS, S, AP, D, kw = '') => W(name, range, A, BS, S, AP, D, kw, 0, 1, true);
@@ -14,6 +14,11 @@ const REFS = (() => {
     U('Intercessor Squad', 'Space Marines', 5, 85, 6, 5, 3, 2, 6, 2, { custom: [minor('Bolter Discipline'), minor('Tactical Mainstay')] }, [
       W('Bolt rifle (focused fire)', 24, 1, 3, 6, 1, 2, 'rf1 heavy'), ALT('Bolt rifle (saturation)', 24, 2, 3, 5, 1, 1, 'assault rf1'),
       W('Bolt pistol', 12, 1, 3, 5, 1, 1, 'cq'), W('Knives and fists', 0, 3, 3, 5, 0, 1)]),
+    U('Roboute Guilliman', 'Space Marines', 1, 415, 8, 10, 2, 16, 5, 4, { keywords: ['monster', 'character'], inv: 4, fnp: 5, abilities: ['supreme', 'loneop'], custom: [major('Primarch of the XIII aura'), major('Author of the Codex')] }, [
+      W('Hand of Dominion', 36, 4, 2, 6, 2, 2, 'rf2 sus1'), W("Emperor's Sword", 0, 10, 2, 10, 3, 2, 'dev cleave2'), ALT('Hand of Dominion (melee)', 0, 7, 2, 14, 4, 4, 'lethal')]),
+    U("Lion El'Jonson", 'Space Marines', 1, 415, 8, 10, 2, 16, 5, 4, { keywords: ['monster', 'character'], inv: 3, abilities: ['supreme', 'deepstrike', 'fightsfirst', 'loneop', 'minus1wound'], custom: [major('Primarch of the First Legion')] }, [
+      W('Arma Luminis (plasma)', 18, 2, 2, 10, 3, 3, 'cq'), ALT('Arma Luminis (bolt)', 18, 4, 2, 6, 2, 2, 'cq'),
+      W('Fealty (sweep)', 0, 12, 2, 6, 3, 2, 'sus1 cleave2'), ALT('Fealty (strike)', 0, 8, 2, 12, 4, 4, 'lethal')]),
     U('Assault Intercessor Squad', 'Space Marines', 5, 85, 6, 5, 3, 2, 6, 2, { custom: [minor('Targeted Intercession')] }, [
       W('Heavy bolt pistol', 18, 1, 3, 5, 1, 1, 'cq'), W('Chainsword', 0, 4, 3, 5, 1, 1)]),
     U('Terminator Squad', 'Space Marines', 5, 190, 5, 6, 2, 3, 6, 1, { inv: 4, abilities: ['deepstrike'], custom: [major('Fury of the First')] }, [

@@ -190,7 +190,7 @@ table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
 
    <div class="card">
     <h2><span class="n">4</span>Abilities</h2>
-    <p class="hint">Tap to switch on. The number shows roughly how much it adds.</p>
+    <p class="hint">Tap to switch on. Each ability adds a percentage of the unit's cost, up to a maximum, and lots of abilities together add a bit less each – so big heroes don't double in price.</p>
     <div class="chips" id="f-abil"></div>
     <div id="capWrap" style="margin-top:12px;display:none" class="row r2"><div><label>Transport capacity (models)</label><input id="f-cap" type="number" min="0" max="40"></div></div>
     <h3 class="disp" style="font-size:14px;margin:16px 0 8px;color:var(--gold2)">Your own special abilities</h3>
@@ -271,7 +271,7 @@ table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
   <h2>How the points are worked out</h2>
   <p><b>1. Attacks.</b> Every weapon is “fired” (in maths, not dice!) at five kinds of target – a horde, an 11th-edition Space Marine (Toughness 5), an elite in heavy armour, a monster and a tank. It works out the hits, wounds, failed saves and damage using the 11th edition rules: cover is −1 to hit for infantry, Heavy works if you move 3" or less, Blast and Cleave add attacks for every five enemy models, Hazardous fails on a 1 or 2, and One Shot can only fire once. Lethal Hits, Sustained Hits, Devastating Wounds, Anti-X, Melta and Twin-linked all count. Longer range is worth more, and weapons with two modes use whichever is better against each target.</p>
   <p><b>2. Toughness.</b> The unit is “shot at” by nine common 11th-edition weapons, from lasguns and boltguns to lascannons and power fists. The more attacks it takes to kill one model, the tougher it is. Toughness, Save, Wounds, InSv, Feel No Pain, Stealth, cover for infantry and −1 Damage all count.</p>
-  <p><b>3. Learning from real datasheets.</b> Attacks, toughness, speed and unit size for every reference datasheet below go into a regression – the computer finds the formula that best matches their real points. Abilities like Deep Strike or Leader add a set percentage on top.</p>
+  <p><b>3. Learning from real datasheets.</b> Attacks, toughness, speed and unit size for every reference datasheet below go into a regression – the computer finds the formula that best matches their real points. Abilities like Deep Strike or Leader add a set percentage on top, each with a maximum number of points, and a long list of abilities gives diminishing returns. Real primarchs like Roboute Guilliman and Lion El'Jonson are in the reference list so huge heroes are priced sensibly.</p>
   <p id="fitInfo"></p>
   <p class="mini">Reference points are 11th edition matched-play costs (November 2026) for the first copies of each unit with its standard wargear. Games Workshop changes points often – if you know a newer value, change it in the table and the formula re-learns instantly. Unofficial fan tool – not affiliated with Games Workshop.</p>
  </div>
@@ -449,7 +449,7 @@ function renderWeapons() {
       <div class="wstats">
         ${melee ? '<div><label>Range</label><input value="Melee" disabled></div>' : `<div><label>Range "</label><input data-f="range" value="${w.range}" inputmode="numeric"></div>`}
         <div><label>Attacks</label><input data-f="A" value="${esc(w.A)}"></div>
-        <div><label>${melee ? 'WS' : 'BS'} +</label><input data-f="BS" value="${w.BS}" inputmode="numeric"></div>
+        <div><label>${melee ? 'WS' : 'BS'} +</label>${!melee && k.torrent ? '<input value="N/A" disabled title="Torrent weapons hit automatically">' : `<input data-f="BS" value="${w.BS}" inputmode="numeric">`}</div>
         <div><label>Strength</label><input data-f="S" value="${w.S}" inputmode="numeric"></div>
         <div><label>AP −</label><input data-f="AP" value="${w.AP}" inputmode="numeric"></div>
         <div><label>Damage</label><input data-f="D" value="${esc(w.D)}"></div>
@@ -457,6 +457,7 @@ function renderWeapons() {
       <div class="chips">
         ${bools.map(([key, lab]) => `<span class="chip ${k[key] ? 'on' : ''}" data-kb="${key}">${lab}</span>`).join('')}
         ${nums.map(([key, lab, def]) => `<span class="chip ${k[key] ? 'on' : ''}" data-kn="${key}" data-def="${def}">${lab}${k[key] ? ` <input data-knv="${key}" value="${k[key]}" inputmode="numeric">` : ''}</span>`).join('')}
+        ${!melee && k.torrent ? `<p class="mini" style="width:100%;margin:2px 0 4px;color:var(--gold2)">🔥 Torrent: hits automatically – no Ballistic Skill roll needed.${k.lethal || k.sus ? ' Because it never rolls to hit, it can’t score critical hits, so Lethal Hits and Sustained Hits do nothing on this weapon.' : ''}</p>` : ''}
         <span class="chip ${antiOn ? 'on' : ''}" data-anti>Anti-${antiOn ? `<select data-antik style="width:auto;padding:2px 4px">${ANTI.map(a => `<option ${a === antiOn[0] ? 'selected' : ''}>${a}</option>`).join('')}</select><input data-antiv value="${antiOn[1]}" inputmode="numeric">+` : '…'}</span>
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin:10px 0 0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)"><input type="checkbox" data-alt style="width:auto" ${w.alt ? 'checked' : ''}> Another mode of the weapon above (pick one each time you attack)</label>
@@ -520,7 +521,7 @@ function updateWeaponValues() {
 function renderAbilities() {
   const A = ENGINE.ABILITIES;
   $('#f-abil').innerHTML = Object.entries(A).map(([key, a]) => {
-    const tag = a.pct ? `${a.pct > 0 ? '+' : '−'}${Math.abs(a.pct)}%` : a.off ? `+${Math.round((a.off - 1) * 100)}% attacks` : key === 'transport' ? 'per seat' : 'tougher';
+    const tag = a.pct ? `${a.pct > 0 ? '+' : '−'}${Math.abs(a.pct)}%${a.cap ? ' (max ' + a.cap + ')' : ''}` : a.off ? `+${Math.round((a.off - 1) * 100)}% attacks` : key === 'transport' ? 'per seat' : 'tougher';
     return `<span class="chip ${S.abilities.includes(key) ? 'on' : ''}" data-a="${key}" title="${esc(a.tip)}">${a.label} <em>${tag}</em></span>`;
   }).join('');
   $('#f-abil').onclick = e => {
@@ -539,7 +540,7 @@ function renderCustom() {
     <div class="wpn-head"><span>✨</span><input data-c="name" value="${esc(c.name)}" placeholder="Ability name"><button class="icon-btn" data-cdel>✕</button></div>
     <textarea data-c="desc" placeholder="What does it do? e.g. Once per battle, this unit can move again after shooting.">${esc(c.desc || '')}</textarea>
     <div style="margin-top:8px"><label>How powerful is it?</label><div class="chips">
-      ${Object.entries(ENGINE.CUSTOM_TIERS).map(([t, p]) => `<span class="chip ${c.tier === t ? 'on' : ''}" data-tier="${t}">${t[0].toUpperCase() + t.slice(1)} <em>+${p}%</em></span>`).join('')}
+      ${Object.entries(ENGINE.CUSTOM_TIERS).map(([t, p]) => `<span class="chip ${c.tier === t ? 'on' : ''}" data-tier="${t}">${t[0].toUpperCase() + t.slice(1)} <em>+${p}% (max ${ENGINE.CUSTOM_CAPS[t]})</em></span>`).join('')}
     </div><p class="mini" style="margin:6px 0 0">Small bonus = minor. Changes how you play = major. Game-changing = huge.</p></div></div>`).join('');
 }
 function setupCustomEvents() {
@@ -582,7 +583,7 @@ function cardHTML(s) {
   const sv = v => v ? v + '+' : '–';
   const st = [['M', s.M + '"'], ['T', s.T], ['SV', s.Sv >= 7 ? '–' : s.Sv + '+'], ['W', s.W], ['LD', s.Ld + '+'], ['OC', s.OC]];
   const row = w => `<tr><td>${w.alt ? '➤ ' : ''}${esc(w.name)}${w.qty > 1 ? ' ×' + w.qty : ''}${w.carriers ? ` <span class="mini">(${w.carriers} model${w.carriers > 1 ? 's' : ''})</span>` : ''}${kwLabel(w.kw) ? `<span class="kw">[${esc(kwLabel(w.kw))}]</span>` : ''}</td>
-    <td>${w.range > 0 ? w.range + '"' : 'Melee'}</td><td>${esc(w.A)}</td><td>${w.BS}+</td><td>${w.S}</td><td>${w.AP ? '-' + w.AP : '0'}</td><td>${esc(w.D)}</td></tr>`;
+    <td>${w.range > 0 ? w.range + '"' : 'Melee'}</td><td>${esc(w.A)}</td><td>${w.range > 0 && kwToObj(w.kw).torrent ? 'N/A' : w.BS + '+'}</td><td>${w.S}</td><td>${w.AP ? '-' + w.AP : '0'}</td><td>${esc(w.D)}</td></tr>`;
   const ranged = s.weapons.filter(w => w.range > 0), melee = s.weapons.filter(w => !(w.range > 0));
   const abil = s.abilities.map(a => ENGINE.ABILITIES[a]).filter(Boolean);
   const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
