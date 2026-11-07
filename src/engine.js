@@ -168,7 +168,7 @@ const ENGINE = (() => {
     loneop:       { label: 'Lone Operative', pct: 12, cap: 50, tip: "Can't be seen from more than 12\" away" },
     fightsfirst:  { label: 'Fights First', pct: 6, cap: 30, tip: 'Fights before other units' },
     fly:          { label: 'Fly', pct: 4, cap: 20, tip: 'Moves over models and terrain' },
-    supreme:      { label: 'Supreme Commander', pct: 6, cap: 25, tip: 'Must be your Warlord – the leader of your whole army' },
+    supreme:      { label: 'Supreme Commander', pct: 0, kwOnly: true, tip: 'Adds the SUPREME COMMANDER keyword (must be your Warlord). Free – no points.' },
     leader:       { label: 'Leader', pct: 15, cap: 35, tip: 'Can join a unit and lead it' },
     support:      { label: 'Support', pct: 8, cap: 20, tip: 'Can join a unit alongside a Leader' },
     reroll1s:     { label: 'Re-roll hit rolls of 1', pct: 0, off: 1.1, tip: 'Applied to attacks' },

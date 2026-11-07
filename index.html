@@ -468,7 +468,7 @@ const ENGINE = (() => {
     loneop:       { label: 'Lone Operative', pct: 12, cap: 50, tip: "Can't be seen from more than 12\" away" },
     fightsfirst:  { label: 'Fights First', pct: 6, cap: 30, tip: 'Fights before other units' },
     fly:          { label: 'Fly', pct: 4, cap: 20, tip: 'Moves over models and terrain' },
-    supreme:      { label: 'Supreme Commander', pct: 6, cap: 25, tip: 'Must be your Warlord – the leader of your whole army' },
+    supreme:      { label: 'Supreme Commander', pct: 0, kwOnly: true, tip: 'Adds the SUPREME COMMANDER keyword (must be your Warlord). Free – no points.' },
     leader:       { label: 'Leader', pct: 15, cap: 35, tip: 'Can join a unit and lead it' },
     support:      { label: 'Support', pct: 8, cap: 20, tip: 'Can join a unit alongside a Leader' },
     reroll1s:     { label: 'Re-roll hit rolls of 1', pct: 0, off: 1.1, tip: 'Applied to attacks' },
@@ -961,7 +961,7 @@ function updateWeaponValues() {
 function renderAbilities() {
   const A = ENGINE.ABILITIES;
   $('#f-abil').innerHTML = Object.entries(A).map(([key, a]) => {
-    const tag = a.pct ? `${a.pct > 0 ? '+' : '−'}${Math.abs(a.pct)}%${a.cap ? ' (max ' + a.cap + ')' : ''}` : a.off ? `+${Math.round((a.off - 1) * 100)}% attacks` : key === 'transport' ? 'per seat' : 'tougher';
+    const tag = a.pct ? `${a.pct > 0 ? '+' : '−'}${Math.abs(a.pct)}%${a.cap ? ' (max ' + a.cap + ')' : ''}` : a.kwOnly ? 'keyword · free' : a.off ? `+${Math.round((a.off - 1) * 100)}% attacks` : key === 'transport' ? 'per seat' : 'tougher';
     return `<span class="chip ${S.abilities.includes(key) ? 'on' : ''}" data-a="${key}" title="${esc(a.tip)}">${a.label} <em>${tag}</em></span>`;
   }).join('');
   $('#f-abil').onclick = e => {
@@ -1025,7 +1025,8 @@ function cardHTML(s) {
   const row = w => `<tr><td>${w.alt ? '➤ ' : ''}${esc(w.name)}${w.qty > 1 ? ' ×' + w.qty : ''}${w.carriers ? ` <span class="mini">(${w.carriers} model${w.carriers > 1 ? 's' : ''})</span>` : ''}${kwLabel(w.kw) ? `<span class="kw">[${esc(kwLabel(w.kw))}]</span>` : ''}</td>
     <td>${w.range > 0 ? w.range + '"' : 'Melee'}</td><td>${esc(w.A)}</td><td>${w.range > 0 && kwToObj(w.kw).torrent ? 'N/A' : w.BS + '+'}</td><td>${w.S}</td><td>${w.AP ? '-' + w.AP : '0'}</td><td>${esc(w.D)}</td></tr>`;
   const ranged = s.weapons.filter(w => w.range > 0), melee = s.weapons.filter(w => !(w.range > 0));
-  const abil = s.abilities.map(a => ENGINE.ABILITIES[a]).filter(Boolean);
+  const abil = s.abilities.map(a => ENGINE.ABILITIES[a]).filter(a => a && !a.kwOnly);
+  const abilKw = s.abilities.map(a => ENGINE.ABILITIES[a]).filter(a => a && a.kwOnly).map(a => a.label);
   const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
   const hon = lines(s.crusade.honours), scars = lines(s.crusade.scars);
   return `<div class="ds">
@@ -1043,7 +1044,7 @@ function cardHTML(s) {
       ${!abil.length && !s.custom.length ? '<p class="mini">None</p>' : ''}
       ${s.crusade.notes ? `<h3>Story</h3><p>${esc(s.crusade.notes).replace(/\n/g, '<br>')}</p>` : ''}
     </div></div>
-    <div class="kwbar"><b>Keywords:</b> ${esc([...s.types, ...String(s.extraKw || '').split(',').map(x => x.trim()).filter(Boolean)].join(', '))}</div>
+    <div class="kwbar"><b>Keywords:</b> ${esc([...s.types, ...abilKw, ...String(s.extraKw || '').split(',').map(x => x.trim()).filter(Boolean)].join(', '))}</div>
     <div class="crusade"><span class="rank">${rankOf(s.crusade.xp || 0)}</span> &nbsp; XP <b>${s.crusade.xp || 0}</b> · Battles <b>${s.crusade.battles || 0}</b> · Kills <b>${s.crusade.kills || 0}</b> · Crusade points <b>${hon.length - scars.length}</b>
       ${hon.length ? `<p style="margin:6px 0 0"><b>Battle Honours:</b> ${hon.map(esc).join(' · ')}</p>` : ''}
       ${scars.length ? `<p style="margin:4px 0 0"><b>Battle Scars:</b> ${scars.map(esc).join(' · ')}</p>` : ''}</div>
