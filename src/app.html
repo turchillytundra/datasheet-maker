@@ -129,6 +129,10 @@ table.list th{color:var(--mute);font-size:11px;text-transform:uppercase;letter-s
 table.list td{padding:8px 6px;border-bottom:1px solid var(--line)}
 table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
 .good{color:var(--green)}.bad{color:#f19b92}
+.imgbox{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.imgprev{width:160px;height:160px;border:1px dashed var(--line);border-radius:10px;display:grid;place-items:center;overflow:hidden;background:#10121a;color:var(--mute);font-size:12px}
+.imgprev img{width:100%;height:100%;object-fit:contain}
+.ds-img{width:100%;max-height:300px;object-fit:contain;border-radius:8px;background:#ddd4c0;margin-bottom:10px;display:block}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--gold);color:#1a1307;padding:10px 18px;border-radius:10px;font-weight:600;opacity:0;transition:.25s;pointer-events:none;z-index:50}
 .toast.on{opacity:1}
 .modal{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;z-index:40;padding:16px}
@@ -169,9 +173,19 @@ table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
     <datalist id="facList"></datalist>
     <div style="margin-top:12px"><label>Unit type</label><div class="chips" id="f-types"></div></div>
     <div class="row r3" style="margin-top:12px">
-      <div><label>Starting strength (models)</label><input id="f-models" type="number" min="1" max="30" inputmode="numeric"></div>
-      <div><label>Can grow to (max)</label><input id="f-max" type="number" min="1" max="30" inputmode="numeric"></div>
+      <div><label>Starting strength (models)</label><input id="f-models" type="number" min="1" max="50" inputmode="numeric"></div>
+      <div><label>Can grow to (max)</label><input id="f-max" type="number" min="1" max="50" inputmode="numeric"></div>
       <div><label>Extra keywords</label><input id="f-kw" placeholder="e.g. Explosives, Imperium"></div>
+    </div>
+    <div style="margin-top:12px"><label>Picture</label>
+      <div class="imgbox">
+        <div id="imgPrev" class="imgprev"><span>No picture yet</span></div>
+        <div class="btns" style="flex-direction:column">
+          <label class="btn" style="margin:0;text-transform:none;font-size:15px;color:var(--ink);letter-spacing:0;text-align:center">📷 Add / change picture<input type="file" id="imgFile" accept="image/*" style="display:none"></label>
+          <button class="btn red" id="imgDel" style="display:none">Remove picture</button>
+          <p class="mini" style="margin:0;max-width:220px">Use a photo of the painted model or a drawing. It's shrunk to save space.</p>
+        </div>
+      </div>
     </div>
    </div>
 
@@ -270,7 +284,7 @@ table.list td.num{text-align:right;font-variant-numeric:tabular-nums}
  <div class="card explain">
   <h2>How the points are worked out</h2>
   <p><b>1. Attacks.</b> Every weapon is “fired” (in maths, not dice!) at five kinds of target – a horde, an 11th-edition Space Marine (Toughness 5), an elite in heavy armour, a monster and a tank. It works out the hits, wounds, failed saves and damage using the 11th edition rules: cover is −1 to hit for infantry, Heavy works if you move 3" or less, Blast and Cleave add attacks for every five enemy models, Hazardous fails on a 1 or 2, and One Shot can only fire once. Lethal Hits, Sustained Hits, Devastating Wounds, Anti-X, Melta and Twin-linked all count. Longer range is worth more, and weapons with two modes use whichever is better against each target.</p>
-  <p><b>2. Toughness.</b> The unit is “shot at” by nine common 11th-edition weapons, from lasguns and boltguns to lascannons and power fists. The more attacks it takes to kill one model, the tougher it is. Toughness, Save, Wounds, InSv, Feel No Pain, Stealth, cover for infantry and −1 Damage all count.</p>
+  <p><b>2. Toughness.</b> The unit is “shot at” by nine common 11th-edition weapons, from lasguns and boltguns to lascannons and power fists. The more attacks it takes to kill one model, the tougher it is. Toughness, Save, Wounds, InSv, Feel No Pain, Stealth, cover for infantry and −1 Damage all count, and Aircraft are much harder to reach in combat.</p>
   <p><b>3. Learning from real datasheets.</b> Attacks, toughness, speed and unit size for every reference datasheet below go into a regression – the computer finds the formula that best matches their real points. Abilities like Deep Strike or Leader add a set percentage on top, each with a maximum number of points, and a long list of abilities gives diminishing returns. Real primarchs like Roboute Guilliman and Lion El'Jonson are in the reference list so huge heroes are priced sensibly.</p>
   <p id="fitInfo"></p>
   <p class="mini">Reference points are 11th edition matched-play costs (November 2026) for the first copies of each unit with its standard wargear. Games Workshop changes points often – if you know a newer value, change it in the table and the formula re-learns instantly. Unofficial fan tool – not affiliated with Games Workshop.</p>
@@ -315,19 +329,19 @@ function confirmBox(title, text) {
   });
 }
 
-const TYPES = ['Character','Battleline','Infantry','Vehicle','Monster','Mounted','Beast','Swarm','Walker','Fly','Psyker','Epic Hero'];
+const TYPES = ['Character','Battleline','Infantry','Vehicle','Monster','Mounted','Beast','Swarm','Walker','Aircraft','Fly','Psyker','Epic Hero'];
 const W_KW_BOOL = [['assault','Assault'],['heavy','Heavy'],['cq','Close-Quarters'],['torrent','Torrent'],['lethal','Lethal Hits'],['dev','Devastating Wounds'],['twin','Twin-linked'],['precision','Precision'],['ic','Ignores Cover'],['indirect','Indirect Fire'],['psychic','Psychic'],['hazardous','Hazardous'],['oneshot','One Shot'],['lance','Lance'],['extra','Extra Attacks']];
 const W_KW_NUM = [['rf','Rapid Fire',1],['sus','Sustained Hits',1],['melta','Melta',2],['blast','Blast',1],['cleave','Cleave',1]];
 const RANGED_ONLY = ['assault','heavy','cq','torrent','indirect','ic','oneshot','rf','melta','blast'];
 const MELEE_ONLY = ['lance','extra','cleave'];
 const ANTI = ['infantry','vehicle','monster','character','fly','psyker'];
-const STATS = [['M','Move','"',1,30],['T','Toughness','',1,20],['Sv','Save','+',2,7],['W','Wounds','',1,40],['Ld','Leadership','+',2,10],['OC','Obj. Control','',0,15],['inv','Invuln save','+',0,6],['fnp','Feel No Pain','+',0,6]];
+const STATS = [['M','Move','"',1,99],['T','Toughness','',1,30],['Sv','Save','+',2,7],['W','Wounds','',1,100],['Ld','Leadership','+',2,10],['OC','Obj. Control','',0,30],['inv','Invuln save','+',0,6],['fnp','Feel No Pain','+',0,6]];
 
 // ---------- state ----------
 const blankSheet = () => ({ id: uid(), name: '', faction: '', types: ['Infantry'], models: 5, maxModels: 10, extraKw: '',
   M: 6, T: 5, Sv: 3, W: 2, Ld: 6, OC: 2, inv: 0, fnp: 0, capacity: 0,
   weapons: [newWeapon(true, 'Boltgun'), newWeapon(false, 'Close combat weapon')],
-  abilities: [], custom: [], crusade: { xp: 0, battles: 0, kills: 0, honours: '', scars: '', notes: '' } });
+  abilities: [], abilityVals: {}, custom: [], image: '', crusade: { xp: 0, battles: 0, kills: 0, honours: '', scars: '', notes: '' } });
 function newWeapon(ranged, name) {
   return ranged ? { id: uid(), name: name || 'New gun', range: 24, A: '2', BS: 3, S: 5, AP: 1, D: '1', kw: '', carriers: 0, qty: 1, alt: false }
                 : { id: uid(), name: name || 'New blade', range: 0, A: '3', BS: 3, S: 5, AP: 0, D: '1', kw: '', carriers: 0, qty: 1, alt: false };
@@ -341,7 +355,7 @@ let model = null;
 // engine adapter
 function toUnit(s) {
   return { models: s.models, M: s.M, T: s.T, Sv: s.Sv, W: s.W, Ld: s.Ld, OC: s.OC, inv: s.inv, fnp: s.fnp, capacity: s.capacity,
-    abilities: s.abilities, custom: s.custom, weapons: s.weapons,
+    abilities: s.abilities, abilityVals: s.abilityVals || {}, custom: s.custom, weapons: s.weapons,
     keywords: s.types.map(t => t.toLowerCase()), points: s.points };
 }
 function refit() { model = ENGINE.fit(refs); }
@@ -381,8 +395,8 @@ function bindBasic() {
   $('#facList').innerHTML = fac.map(f => `<option value="${esc(f)}">`).join('');
   const map = { '#f-name': 'name', '#f-faction': 'faction', '#f-kw': 'extraKw' };
   for (const [sel, key] of Object.entries(map)) $(sel).oninput = e => { S[key] = e.target.value; changed(); };
-  $('#f-models').oninput = e => { S.models = clampInt(e.target.value, 1, 30, 1); if (S.maxModels < S.models) { S.maxModels = S.models; $('#f-max').value = S.models; } changed(); renderWeapons(); };
-  $('#f-max').oninput = e => { S.maxModels = clampInt(e.target.value, 1, 30, S.models); changed(); };
+  $('#f-models').oninput = e => { S.models = clampInt(e.target.value, 1, 50, 1); if (S.maxModels < S.models) { S.maxModels = S.models; $('#f-max').value = S.models; } changed(); renderWeapons(); };
+  $('#f-max').oninput = e => { S.maxModels = clampInt(e.target.value, 1, 50, S.models); changed(); };
   $('#f-cap').oninput = e => { S.capacity = clampInt(e.target.value, 0, 40, 0); changed(); };
   const cmap = { '#c-xp': 'xp', '#c-battles': 'battles', '#c-kills': 'kills', '#c-honours': 'honours', '#c-scars': 'scars', '#c-notes': 'notes' };
   for (const [sel, key] of Object.entries(cmap)) $(sel).oninput = e => { S.crusade[key] = e.target.type === 'number' ? (+e.target.value || 0) : e.target.value; changed(false); };
@@ -394,7 +408,7 @@ function renderForm() {
   $('#f-models').value = S.models; $('#f-max').value = S.maxModels; $('#f-cap').value = S.capacity;
   $('#c-xp').value = S.crusade.xp; $('#c-battles').value = S.crusade.battles; $('#c-kills').value = S.crusade.kills;
   $('#c-honours').value = S.crusade.honours; $('#c-scars').value = S.crusade.scars; $('#c-notes').value = S.crusade.notes;
-  renderTypes(); renderStats(); renderAbilities(); renderCustom(); renderPoints(); renderWeapons();
+  renderTypes(); renderStats(); renderAbilities(); renderCustom(); renderImage(); renderPoints(); renderWeapons();
 }
 function renderTypes() {
   $('#f-types').innerHTML = TYPES.map(t => `<span class="chip ${S.types.includes(t) ? 'on' : ''}" data-t="${t}">${t}</span>`).join('');
@@ -402,6 +416,7 @@ function renderTypes() {
     const c = e.target.closest('.chip'); if (!c) return;
     const t = c.dataset.t; S.types = S.types.includes(t) ? S.types.filter(x => x !== t) : [...S.types, t];
     if (t === 'Fly') syncAbility('fly', S.types.includes('Fly'));
+    if (t === 'Aircraft' && S.types.includes('Aircraft')) { if (!S.types.includes('Fly')) S.types.push('Fly'); if (!S.types.includes('Vehicle')) S.types.push('Vehicle'); S.types = S.types.filter(x => x !== 'Infantry'); syncAbility('fly', true); }
     renderTypes(); changed();
   };
 }
@@ -443,7 +458,7 @@ function renderWeapons() {
     const melee = !(w.range > 0), k = kwToObj(w.kw);
     const ok = ([key]) => melee ? !RANGED_ONLY.includes(key) : !MELEE_ONLY.includes(key);
     const bools = W_KW_BOOL.filter(ok), nums = W_KW_NUM.filter(ok);
-    const antiOn = (k.anti || [])[0];
+    const antis = k.anti || [];
     return `<div class="wpn ${melee ? 'melee' : 'ranged'}" data-id="${w.id}">
       <div class="wpn-head"><span title="${melee ? 'Melee' : 'Ranged'}">${melee ? '⚔️' : '🎯'}</span><input data-f="name" value="${esc(w.name)}"><span class="val" data-val></span><button class="icon-btn" data-del title="Remove">✕</button></div>
       <div class="wstats">
@@ -458,7 +473,8 @@ function renderWeapons() {
         ${bools.map(([key, lab]) => `<span class="chip ${k[key] ? 'on' : ''}" data-kb="${key}">${lab}</span>`).join('')}
         ${nums.map(([key, lab, def]) => `<span class="chip ${k[key] ? 'on' : ''}" data-kn="${key}" data-def="${def}">${lab}${k[key] ? ` <input data-knv="${key}" value="${k[key]}" inputmode="numeric">` : ''}</span>`).join('')}
         ${!melee && k.torrent ? `<p class="mini" style="width:100%;margin:2px 0 4px;color:var(--gold2)">🔥 Torrent: hits automatically – no Ballistic Skill roll needed.${k.lethal || k.sus ? ' Because it never rolls to hit, it can’t score critical hits, so Lethal Hits and Sustained Hits do nothing on this weapon.' : ''}</p>` : ''}
-        <span class="chip ${antiOn ? 'on' : ''}" data-anti>Anti-${antiOn ? `<select data-antik style="width:auto;padding:2px 4px">${ANTI.map(a => `<option ${a === antiOn[0] ? 'selected' : ''}>${a}</option>`).join('')}</select><input data-antiv value="${antiOn[1]}" inputmode="numeric">+` : '…'}</span>
+        ${antis.map(([kw, v], i) => `<span class="chip on">Anti-<select data-antik="${i}" style="width:auto;padding:2px 4px">${ANTI.map(a => `<option ${a === kw ? 'selected' : ''}>${a}</option>`).join('')}</select><input data-antiv="${i}" value="${v}" inputmode="numeric">+ <b data-antidel="${i}" style="cursor:pointer;padding:0 2px" title="Remove">✕</b></span>`).join('')}
+        <span class="chip" data-antiadd>+ Anti-…</span>
       </div>
       <label style="display:flex;gap:8px;align-items:center;margin:10px 0 0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--ink)"><input type="checkbox" data-alt style="width:auto" ${w.alt ? 'checked' : ''}> Another mode of the weapon above (pick one each time you attack)</label>
       <div class="wfoot">
@@ -484,24 +500,25 @@ function setupWeaponEvents() {
     }
     const k = kwToObj(w.kw);
     if (e.target.dataset.knv) { k[e.target.dataset.knv] = Math.max(1, parseInt(e.target.value, 10) || 1); w.kw = objToKw(k); }
-    if (e.target.dataset.antiv !== undefined) { k.anti = [[k.anti[0][0], Math.max(2, Math.min(6, parseInt(e.target.value, 10) || 4))]]; w.kw = objToKw(k); }
+    if (e.target.dataset.antiv !== undefined) { const i = +e.target.dataset.antiv; k.anti[i] = [k.anti[i][0], Math.max(2, Math.min(6, parseInt(e.target.value, 10) || 4))]; w.kw = objToKw(k); }
     changed(); updateWeaponValues();
   });
   host.addEventListener('change', e => {
     const w = wById(e.target); if (!w) return;
     if (e.target.dataset.f === 'carriers') { w.carriers = +e.target.value; changed(); updateWeaponValues(); }
     if (e.target.dataset.alt !== undefined) { w.alt = e.target.checked; changed(); updateWeaponValues(); }
-    if (e.target.dataset.antik !== undefined) { const k = kwToObj(w.kw); k.anti = [[e.target.value, k.anti[0][1]]]; w.kw = objToKw(k); changed(); updateWeaponValues(); }
+    if (e.target.dataset.antik !== undefined) { const k = kwToObj(w.kw), i = +e.target.dataset.antik; k.anti[i] = [e.target.value, k.anti[i][1]]; w.kw = objToKw(k); changed(); updateWeaponValues(); }
   });
   host.addEventListener('click', async e => {
     const w = wById(e.target); if (!w) return;
     if (e.target.matches('input,select,label')) return;
     if (e.target.closest('[data-del]')) { S.weapons = S.weapons.filter(x => x !== w); renderWeapons(); changed(); return; }
-    const c = e.target.closest('.chip'); if (!c) return;
     const k = kwToObj(w.kw);
+    if (e.target.dataset.antidel !== undefined) { k.anti.splice(+e.target.dataset.antidel, 1); w.kw = objToKw(k); renderWeapons(); changed(); return; }
+    const c = e.target.closest('.chip'); if (!c) return;
+    if (c.dataset.antiadd !== undefined) { const used = (k.anti || []).map(a => a[0]); k.anti = [...(k.anti || []), [ANTI.find(a => !used.includes(a)) || 'infantry', 4]]; w.kw = objToKw(k); renderWeapons(); changed(); return; }
     if (c.dataset.kb) k[c.dataset.kb] = k[c.dataset.kb] ? 0 : 1;
     else if (c.dataset.kn) k[c.dataset.kn] = k[c.dataset.kn] ? 0 : +c.dataset.def;
-    else if (c.dataset.anti !== undefined) k.anti = k.anti && k.anti.length ? [] : [['vehicle', 4]];
     w.kw = objToKw(k); renderWeapons(); changed();
   });
   $('#addRanged').onclick = () => { S.weapons.push(newWeapon(true)); renderWeapons(); changed(); };
@@ -522,9 +539,16 @@ function renderAbilities() {
   const A = ENGINE.ABILITIES;
   $('#f-abil').innerHTML = Object.entries(A).map(([key, a]) => {
     const tag = a.pct ? `${a.pct > 0 ? '+' : '−'}${Math.abs(a.pct)}%${a.cap ? ' (max ' + a.cap + ')' : ''}` : a.kwOnly ? 'keyword · free' : a.off ? `+${Math.round((a.off - 1) * 100)}% attacks` : key === 'transport' ? 'per seat' : 'tougher';
-    return `<span class="chip ${S.abilities.includes(key) ? 'on' : ''}" data-a="${key}" title="${esc(a.tip)}">${a.label} <em>${tag}</em></span>`;
+    const on = S.abilities.includes(key);
+    const vin = on && a.val ? ` <input data-av="${key}" value="${esc(abVal(S, key))}" style="width:${a.val.kind === 'text' ? 54 : 42}px"${a.val.kind === 'num' ? ' inputmode="numeric"' : ''}>${a.val.suf === '"' ? '"' : ''}` : '';
+    return `<span class="chip ${on ? 'on' : ''}" data-a="${key}" title="${esc(a.tip)}">${a.label}${vin} <em>${tag}</em></span>`;
   }).join('');
+  $('#f-abil').oninput = e => {
+    const k = e.target.dataset.av; if (!k) return;
+    S.abilityVals = S.abilityVals || {}; S.abilityVals[k] = e.target.value.trim(); changed();
+  };
   $('#f-abil').onclick = e => {
+    if (e.target.matches('input')) return;
     const c = e.target.closest('.chip'); if (!c) return;
     const key = c.dataset.a;
     S.abilities = S.abilities.includes(key) ? S.abilities.filter(x => x !== key) : [...S.abilities, key];
@@ -535,6 +559,36 @@ function renderAbilities() {
   };
   $('#capWrap').style.display = S.abilities.includes('transport') ? 'grid' : 'none';
 }
+function renderImage() {
+  $('#imgPrev').innerHTML = S.image ? `<img src="${S.image}" alt="">` : '<span>No picture yet</span>';
+  $('#imgDel').style.display = S.image ? '' : 'none';
+}
+function shrinkImage(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      const max = 640, sc = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      let q = 0.8, out = c.toDataURL('image/jpeg', q);
+      while (out.length > 150000 && q > 0.4) { q -= 0.1; out = c.toDataURL('image/jpeg', q); }
+      res(out);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('bad image')); };
+    img.src = url;
+  });
+}
+function setupImage() {
+  $('#imgFile').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { S.image = await shrinkImage(f); renderImage(); changed(false); toast('Picture added'); }
+    catch (err) { toast("Couldn't read that picture"); }
+  };
+  $('#imgDel').onclick = () => { S.image = ''; renderImage(); changed(false); };
+}
+function abVal(s, key) { const a = ENGINE.ABILITIES[key]; const v = (s.abilityVals || {})[key]; return v == null || v === '' ? (a.val ? a.val.def : '') : v; }
+function abLabel(s, key) { const a = ENGINE.ABILITIES[key]; if (!a.val) return a.label; const v = abVal(s, key); return key === 'damaged' ? `${a.label} (${v} wounds left)` : `${a.label} ${v}${a.val.suf === '"' ? '"' : ''}`; }
 function renderCustom() {
   $('#f-custom').innerHTML = S.custom.map((c, i) => `<div class="wpn" data-i="${i}" style="border-left:4px solid var(--gold)">
     <div class="wpn-head"><span>✨</span><input data-c="name" value="${esc(c.name)}" placeholder="Ability name"><button class="icon-btn" data-cdel>✕</button></div>
@@ -585,7 +639,7 @@ function cardHTML(s) {
   const row = w => `<tr><td>${w.alt ? '➤ ' : ''}${esc(w.name)}${w.qty > 1 ? ' ×' + w.qty : ''}${w.carriers ? ` <span class="mini">(${w.carriers} model${w.carriers > 1 ? 's' : ''})</span>` : ''}${kwLabel(w.kw) ? `<span class="kw">[${esc(kwLabel(w.kw))}]</span>` : ''}</td>
     <td>${w.range > 0 ? w.range + '"' : 'Melee'}</td><td>${esc(w.A)}</td><td>${w.range > 0 && kwToObj(w.kw).torrent ? 'N/A' : w.BS + '+'}</td><td>${w.S}</td><td>${w.AP ? '-' + w.AP : '0'}</td><td>${esc(w.D)}</td></tr>`;
   const ranged = s.weapons.filter(w => w.range > 0), melee = s.weapons.filter(w => !(w.range > 0));
-  const abil = s.abilities.map(a => ENGINE.ABILITIES[a]).filter(a => a && !a.kwOnly);
+  const abil = s.abilities.filter(a => ENGINE.ABILITIES[a] && !ENGINE.ABILITIES[a].kwOnly).map(a => ({ label: abLabel(s, a) }));
   const abilKw = s.abilities.map(a => ENGINE.ABILITIES[a]).filter(a => a && a.kwOnly).map(a => a.label);
   const lines = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean);
   const hon = lines(s.crusade.honours), scars = lines(s.crusade.scars);
@@ -598,6 +652,7 @@ function cardHTML(s) {
       ${ranged.length ? `<table><tr><th>Ranged weapons</th><th>Range</th><th>A</th><th>BS</th><th>S</th><th>AP</th><th>D</th></tr>${ranged.map(row).join('')}</table>` : ''}
       ${melee.length ? `<table><tr><th>Melee weapons</th><th>Range</th><th>A</th><th>WS</th><th>S</th><th>AP</th><th>D</th></tr>${melee.map(row).join('')}</table>` : ''}
     </div><div>
+      ${s.image ? `<img class="ds-img" src="${s.image}" alt="">` : ''}
       <h3>Abilities</h3>
       ${abil.length ? `<p>${abil.map(a => `<b>${esc(a.label)}</b>`).join(', ')}${s.abilities.includes('transport') ? ` – carries ${s.capacity} models` : ''}</p>` : ''}
       ${s.custom.map(c => `<p><b>${esc(c.name || 'Special ability')}:</b> ${esc(c.desc || '')}</p>`).join('')}
@@ -616,13 +671,44 @@ let db = null, uidUser = null;
 const LS = 'crusadeForge.v1';
 function lsGet() { try { return JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { return null; } }
 function lsSet(v) { try { localStorage.setItem(LS, JSON.stringify(v)); } catch (e) {} }
-async function persist() {
+// Pictures are big, so they're saved in their own documents and the main save just points at them.
+function hashStr(t) { let h = 5381; for (let i = 0; i < t.length; i += 7) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36) + t.length.toString(36); }
+function splitImages(blob) {
+  const imgs = {};
+  const strip = sh => { if (sh && sh.image && sh.image.startsWith('data:')) { const key = 'img_' + hashStr(sh.image); imgs[key] = sh.image; return { ...sh, image: '@' + key }; } return sh; };
+  return { blob: { ...blob, roster: { ...blob.roster, sheets: blob.roster.sheets.map(strip) }, current: strip(blob.current) }, imgs };
+}
+function lsSave(blob) {
+  const parts = splitImages(blob);
+  try { localStorage.setItem(LS, JSON.stringify(blob)); }
+  catch (e) { try { localStorage.setItem(LS, JSON.stringify(parts.blob)); for (const [k, v] of Object.entries(parts.imgs)) localStorage.setItem(LS + '.' + k, v); } catch (e2) {} }
+  return parts;
+}
+const savedImgs = new Set();
+let saving = Promise.resolve();
+function persist() { saving = saving.then(persistNow, persistNow); return saving; }
+async function persistNow() {
   const blob = { roster, refs: refsChanged() ? refs : null, refsVersion: REFS_VERSION, current: S };
-  lsSet(blob);
+  const { blob: slim, imgs } = lsSave(blob);
   if (db && uidUser) {
-    try { await db.doc('data/users/' + uidUser + '/forge').set({ json: JSON.stringify(blob), at: Date.now() }); $('#r-store').textContent = 'Saved to your account – opens on any device you sign in on.'; }
-    catch (e) { $('#r-store').textContent = 'Saved on this device only.'; }
+    try {
+      for (const [k, v] of Object.entries(imgs)) if (!savedImgs.has(k)) { await db.doc('data/users/' + uidUser + '/' + k).set({ data: v }); savedImgs.add(k); }
+      await db.doc('data/users/' + uidUser + '/forge').set({ json: JSON.stringify(slim), at: Date.now() });
+      $('#r-store').textContent = 'Saved to your account – opens on any device you sign in on.';
+    } catch (e) { $('#r-store').textContent = e && e.code === 'quota_exceeded' ? 'Your account storage is full – try smaller or fewer pictures. Saved on this device.' : 'Saved on this device only.'; }
   } else $('#r-store').textContent = 'Saved on this device only.';
+}
+async function fillImages(b) {
+  const all = [...((b.roster && b.roster.sheets) || []), b.current].filter(Boolean);
+  for (const sh of all) {
+    if (typeof sh.image === 'string' && sh.image.startsWith('@')) {
+      const key = sh.image.slice(1);
+      let v = null; try { v = localStorage.getItem(LS + '.' + key); } catch (e) {}
+      if (!v && db && uidUser) { try { const d = await db.doc('data/users/' + uidUser + '/' + key).get(); if (d.exists) { v = d.data().data; savedImgs.add(key); } } catch (e) {} }
+      sh.image = v || '';
+    }
+  }
+  return b;
 }
 function refsChanged() { return JSON.stringify(refs) !== JSON.stringify(DEFAULT_REFS); }
 function loadBlob(b) {
@@ -648,7 +734,7 @@ async function initCloud() {
     if (snap.exists) {
       const local = lsGet();
       const cloud = JSON.parse(snap.data().json || 'null');
-      loadBlob(cloud || local);
+      loadBlob(await fillImages(cloud || local));
       refit(); renderForm(); renderRoster(); renderRefs(); dirty = false; $('#saveState').textContent = '';
     }
     $('#r-store').textContent = 'Saved to your account – opens on any device you sign in on.';
@@ -752,12 +838,12 @@ $('#importBtn').onclick = () => { $('#importText').value = ''; $('#importModal')
 $('#importCancel').onclick = () => $('#importModal').classList.remove('on');
 $('#importGo').onclick = () => { if (importText($('#importText').value)) $('#importModal').classList.remove('on'); };
 $('#importFile').onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(importText); e.target.value = ''; };
-setInterval(() => { if (dirty) lsSet({ roster, refs: refsChanged() ? refs : null, refsVersion: REFS_VERSION, current: S }); }, 4000);
+setInterval(() => { if (dirty) lsSave({ roster, refs: refsChanged() ? refs : null, refsVersion: REFS_VERSION, current: S }); }, 4000);
 
 // ---------- boot ----------
-loadBlob(lsGet());
+const boot = lsGet(); if (boot) fillImages(boot); loadBlob(boot);
 refit();
-bindBasic(); setupWeaponEvents(); setupCustomEvents(); setupRoster(); setupRefs();
+bindBasic(); setupWeaponEvents(); setupCustomEvents(); setupImage(); setupRoster(); setupRefs();
 renderForm(); dirty = false; $('#saveState').textContent = '';
 const h = location.hash.slice(1); if (['card', 'roster', 'refs'].includes(h)) show(h);
 initCloud();

@@ -144,6 +144,7 @@ const ENGINE = (() => {
     for (const a of ATTACKERS) {
       let ph = 4 / 6;
       if (!a.m) ph -= ab.has('stealth') ? 1 / 6 : coverable ? 0.5 / 6 : 0;
+      if (a.m && kws.includes('aircraft')) ph /= 3;   // only units that can FLY can fight it
       let need = woundNeed(a.S, T);
       if (ab.has('minus1wound') && a.S > T) need = Math.min(6, need + 1);
       const pw = pOf(need);
@@ -162,7 +163,7 @@ const ENGINE = (() => {
   // ---- Abilities: value multipliers (fixed, not fitted) ----
   const ABILITIES = {
     deepstrike:   { label: 'Deep Strike', pct: 8, cap: 40, tip: 'Arrives from reserves anywhere more than 8" from enemies' },
-    scouts:       { label: 'Scouts', pct: 5, cap: 25, tip: 'Free move before the battle' },
+    scouts:       { label: 'Scouts', pct: 5, cap: 25, val: { def: 6, suf: '"', kind: 'num' }, tip: 'Free move before the battle (set how far)' },
     infiltrators: { label: 'Infiltrators', pct: 6, cap: 30, tip: 'Deploys anywhere more than 8" from enemies' },
     stealth:      { label: 'Stealth', pct: 0, tip: '-1 to be hit by ranged attacks (worked out in toughness)' },
     loneop:       { label: 'Lone Operative', pct: 12, cap: 50, tip: "Can't be seen from more than 12\" away" },
@@ -187,9 +188,9 @@ const ENGINE = (() => {
     psyker:       { label: 'Psyker', pct: 3, cap: 15, tip: 'Has psychic powers' },
     regen:        { label: 'Heals / brings models back', pct: 8, cap: 40, tip: 'Reanimation, regeneration, etc.' },
     transport:    { label: 'Transport', pct: 0, tip: 'Carries other models (set capacity)' },
-    firingdeck:   { label: 'Firing Deck', pct: 3, cap: 15, tip: 'Passengers can shoot out' },
-    deadlydemise: { label: 'Deadly Demise', pct: 1, cap: 5, tip: 'Explodes when destroyed' },
-    damaged:      { label: 'Damaged', pct: -3, tip: 'Gets worse when badly hurt (big models)' },
+    firingdeck:   { label: 'Firing Deck', pct: 3, cap: 25, val: { def: 2, kind: 'num' }, tip: 'Up to X passengers can shoot out' },
+    deadlydemise: { label: 'Deadly Demise', pct: 1, cap: 10, val: { def: 'D3', kind: 'dice' }, tip: 'Explodes when destroyed (X mortal wounds)' },
+    damaged:      { label: 'Damaged', pct: -3, val: { def: '1-5', kind: 'text', pre: '', suf: ' wounds left' }, tip: 'Gets worse when it has only X wounds left (big models)' },
   };
   const CUSTOM_TIERS = { minor: 5, major: 12, huge: 25 };
   const CUSTOM_CAPS = { minor: 15, major: 35, huge: 60 };
@@ -199,7 +200,16 @@ const ENGINE = (() => {
   function abilityPoints(u, core) {
     let pos = 0, neg = 0;
     const add = (pct, cap) => { const v = core * pct / 100; if (v >= 0) pos += Math.min(v, cap == null ? Infinity : cap); else neg += v; };
-    for (const a of u.abilities || []) if (ABILITIES[a] && ABILITIES[a].pct) add(ABILITIES[a].pct, ABILITIES[a].cap);
+    const vals = u.abilityVals || {};
+    const scale = a => {
+      const v = vals[a];
+      if (v == null || v === '') return 1;
+      if (a === 'firingdeck') return Math.max(0, +v || 0) / 2;          // Firing Deck 2 = base
+      if (a === 'scouts') return Math.max(0, +v || 0) / 6;              // Scouts 6" = base
+      if (a === 'deadlydemise') return Math.max(0, dice(v)) / 2;        // D3 = base
+      return 1;
+    };
+    for (const a of u.abilities || []) if (ABILITIES[a] && ABILITIES[a].pct) add(ABILITIES[a].pct * scale(a), ABILITIES[a].cap);
     for (const c of u.custom || []) if (CUSTOM_TIERS[c.tier]) add(CUSTOM_TIERS[c.tier], CUSTOM_CAPS[c.tier]);
     const eff = pos > 0 ? pos * core / (core + 0.75 * pos) : 0;
     return eff + neg;
